@@ -9,7 +9,7 @@ export type StateSalesGroup = {
 
 export type SalesAnalysis = {
   groups: StateSalesGroup[];
-  refundRowsSkipped: number;
+  skippedRowsCount: number;
   totalRows: number;
   unmappedRows: UnmappedRow[];
 };

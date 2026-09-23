@@ -30,7 +30,7 @@ export function StateSalesList({
             <p className="break-all">File: {fileName}</p>
             <p>Selected sheet: {selectedSheet}</p>
             <p>Rows checked: {analysis.totalRows}</p>
-            <p>Refund rows skipped: {analysis.refundRowsSkipped}</p>
+            <p>Non-shipment rows skipped: {analysis.skippedRowsCount}</p>
           </div>
         </div>
 

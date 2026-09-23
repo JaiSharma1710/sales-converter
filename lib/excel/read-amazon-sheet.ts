@@ -4,10 +4,10 @@ import type { AmazonSourceRow } from "@/types/amazon";
 
 const SELLER_GSTIN_HEADER = "Seller Gstin";
 const TRANSACTION_TYPE_HEADER = "Transaction Type";
-const REFUND_TRANSACTION_TYPE = "refund";
+const SHIPMENT_TRANSACTION_TYPE = "shipment";
 
 type ReadAmazonSheetResult = {
-  refundRowsSkipped: number;
+  skippedRowsCount: number;
   sourceRows: AmazonSourceRow[];
 };
 
@@ -83,13 +83,17 @@ export function readAmazonSheet(
       };
     })
     .filter((row) => rowHasValue(Object.values(row.values)));
-  const sourceRows = actualRows.filter(
-    (row) =>
-      row.transactionType?.toLowerCase() !== REFUND_TRANSACTION_TYPE,
-  );
+  const sourceRows =
+    transactionTypeColumnIndex === -1
+      ? actualRows
+      : actualRows.filter(
+          (row) =>
+            row.transactionType?.toLowerCase() ===
+            SHIPMENT_TRANSACTION_TYPE,
+        );
 
   return {
-    refundRowsSkipped: actualRows.length - sourceRows.length,
+    skippedRowsCount: actualRows.length - sourceRows.length,
     sourceRows,
   };
 }

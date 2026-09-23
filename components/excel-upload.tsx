@@ -108,7 +108,7 @@ export function ExcelUpload() {
     setPreviewWorkbook(null);
 
     try {
-      const { refundRowsSkipped, sourceRows } = readAmazonSheet(
+      const { skippedRowsCount, sourceRows } = readAmazonSheet(
         workbook,
         nextSelectedSheet,
       );
@@ -116,7 +116,7 @@ export function ExcelUpload() {
 
       setSalesAnalysis({
         groups,
-        refundRowsSkipped,
+        skippedRowsCount,
         totalRows: sourceRows.length,
         unmappedRows,
       });
