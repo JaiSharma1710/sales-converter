@@ -20,6 +20,14 @@ You can start editing the page by modifying `app/page.tsx`. The page auto-update
 
 This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
 
+## Mappings database
+
+Warehouse (GST prefix → site), product (SKU) and customer (site + state) mappings are stored in SQLite and edited from the **Mappings** button in the app.
+
+- The database file is `data/sales-converter.db` (git-ignored). Set `DATABASE_PATH` to use a different location.
+- It is created on first request. Migrations in `lib/db/migrations.ts` create the tables and seed them once from `lib/db/seed-data/`, the mappings that used to be hard-coded.
+- To back up the mappings, copy the `data/` folder while the app is stopped.
+
 ## Learn More
 
 To learn more about Next.js, take a look at the following resources:

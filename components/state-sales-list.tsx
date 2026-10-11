@@ -1,3 +1,4 @@
+import type { MissingMapping } from "@/types/mappings";
 import type { SalesAnalysis, StateSalesGroup } from "@/types/sales";
 import { ConversionErrors } from "./conversion-errors";
 
@@ -5,6 +6,7 @@ type StateSalesListProps = {
   analysis: SalesAnalysis;
   fileName: string;
   selectedSheet: string;
+  onAddMapping: (missingMapping: MissingMapping) => void;
   onOpenPreview: (group: StateSalesGroup) => void;
   onStartOver: () => void;
 };
@@ -13,6 +15,7 @@ export function StateSalesList({
   analysis,
   fileName,
   selectedSheet,
+  onAddMapping,
   onOpenPreview,
   onStartOver,
 }: StateSalesListProps) {
@@ -78,8 +81,10 @@ export function StateSalesList({
         <div className="mt-6">
           <ConversionErrors
             title={`${analysis.unmappedRows.length} rows could not be mapped from Seller Gstin.`}
+            onAddMapping={onAddMapping}
             errors={analysis.unmappedRows.map((row) => ({
               message: row.reason,
+              missingMapping: row.missingMapping,
               rowNumber: row.rowNumber,
               value: row.sellerGstin || "Empty",
             }))}

@@ -1,15 +1,18 @@
 "use client";
 
-import { useRef, useState } from "react";
+import { useMemo, useRef, useState } from "react";
 import * as XLSX from "xlsx";
 import { groupSalesByState } from "@/lib/excel/group-sales-by-state";
 import { readAmazonSheet } from "@/lib/excel/read-amazon-sheet";
+import { createMappingIndex } from "@/lib/mappings/mapping-index";
 import { convertStateSalesRows } from "@/lib/sales/convert-state-sales";
+import type { AmazonSourceRow } from "@/types/amazon";
 import type {
-  ConvertedStateWorkbook,
-  SalesAnalysis,
-  StateSalesGroup,
-} from "@/types/sales";
+  MappingKind,
+  Mappings,
+  MissingMapping,
+} from "@/types/mappings";
+import type { SalesAnalysis } from "@/types/sales";
 import { ConfirmSheetDialog } from "./confirm-sheet-dialog";
 import { StateSalesList } from "./state-sales-list";
 import { SheetSelector } from "./sheet-selector";
@@ -25,17 +28,29 @@ function isExcelFile(file: File) {
   return fileName.endsWith(".xls") || fileName.endsWith(".xlsx");
 }
 
-export function ExcelUpload() {
+type SheetData = {
+  skippedRowsCount: number;
+  sourceRows: AmazonSourceRow[];
+};
+
+type ExcelUploadProps = {
+  mappings: Mappings;
+  onAddMapping: (missingMapping: MissingMapping) => void;
+  onOpenSettings: (kind: MappingKind) => void;
+};
+
+export function ExcelUpload({
+  mappings,
+  onAddMapping,
+  onOpenSettings,
+}: ExcelUploadProps) {
   const [file, setFile] = useState<File | null>(null);
   const [workbook, setWorkbook] = useState<XLSX.WorkBook | null>(null);
   const [sheetNames, setSheetNames] = useState<string[]>([]);
   const [pendingSheet, setPendingSheet] = useState<string | null>(null);
   const [selectedSheet, setSelectedSheet] = useState<string | null>(null);
-  const [salesAnalysis, setSalesAnalysis] = useState<SalesAnalysis | null>(
-    null,
-  );
-  const [previewWorkbook, setPreviewWorkbook] =
-    useState<ConvertedStateWorkbook | null>(null);
+  const [sheetData, setSheetData] = useState<SheetData | null>(null);
+  const [previewSiteCode, setPreviewSiteCode] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [isDragging, setIsDragging] = useState(false);
   const [isReading, setIsReading] = useState(false);
@@ -47,10 +62,40 @@ export function ExcelUpload() {
     setSheetNames([]);
     setPendingSheet(null);
     setSelectedSheet(null);
-    setSalesAnalysis(null);
-    setPreviewWorkbook(null);
+    setSheetData(null);
+    setPreviewSiteCode(null);
     setError(null);
   };
+
+  // Derived from the mappings so that saving a mapping in settings
+  // re-runs the conversion without re-reading the file.
+  const mappingIndex = useMemo(() => createMappingIndex(mappings), [mappings]);
+  const salesAnalysis = useMemo<SalesAnalysis | null>(() => {
+    if (!sheetData) {
+      return null;
+    }
+
+    return {
+      ...groupSalesByState(sheetData.sourceRows, mappingIndex),
+      skippedRowsCount: sheetData.skippedRowsCount,
+      totalRows: sheetData.sourceRows.length,
+    };
+  }, [mappingIndex, sheetData]);
+  const previewGroup =
+    salesAnalysis?.groups.find((group) => group.siteCode === previewSiteCode) ??
+    null;
+  const previewWorkbook = useMemo(
+    () =>
+      previewGroup
+        ? convertStateSalesRows({
+            mappingIndex,
+            siteCode: previewGroup.siteCode,
+            sourceRows: previewGroup.sourceRows,
+            state: previewGroup.state,
+          })
+        : null,
+    [mappingIndex, previewGroup],
+  );
 
   const readWorkbook = async (nextFile: File) => {
     resetWorkbookState();
@@ -105,23 +150,12 @@ export function ExcelUpload() {
     setError(null);
     setSelectedSheet(nextSelectedSheet);
     setPendingSheet(null);
-    setPreviewWorkbook(null);
+    setPreviewSiteCode(null);
 
     try {
-      const { skippedRowsCount, sourceRows } = readAmazonSheet(
-        workbook,
-        nextSelectedSheet,
-      );
-      const { groups, unmappedRows } = groupSalesByState(sourceRows);
-
-      setSalesAnalysis({
-        groups,
-        skippedRowsCount,
-        totalRows: sourceRows.length,
-        unmappedRows,
-      });
+      setSheetData(readAmazonSheet(workbook, nextSelectedSheet));
     } catch (analysisError) {
-      setSalesAnalysis(null);
+      setSheetData(null);
       setError(
         analysisError instanceof Error
           ? analysisError.message
@@ -130,23 +164,14 @@ export function ExcelUpload() {
     }
   };
 
-  const openPreview = (group: StateSalesGroup) => {
-    setPreviewWorkbook(
-      convertStateSalesRows({
-        siteCode: group.siteCode,
-        sourceRows: group.sourceRows,
-        state: group.state,
-      }),
-    );
-  };
-
   const activeSheet = pendingSheet ?? selectedSheet;
 
   if (previewWorkbook) {
     return (
       <WorkbookPreview
         workbook={previewWorkbook}
-        onBack={() => setPreviewWorkbook(null)}
+        onAddMapping={onAddMapping}
+        onBack={() => setPreviewSiteCode(null)}
       />
     );
   }
@@ -157,14 +182,30 @@ export function ExcelUpload() {
         analysis={salesAnalysis}
         fileName={file.name}
         selectedSheet={selectedSheet}
-        onOpenPreview={openPreview}
+        onAddMapping={onAddMapping}
+        onOpenPreview={(group) => setPreviewSiteCode(group.siteCode)}
         onStartOver={resetWorkbookState}
       />
     );
   }
 
+  const mappingStats: { kind: MappingKind; label: string; count: number }[] = [
+    { count: mappings.sites.length, kind: "site", label: "Warehouses" },
+    { count: mappings.products.length, kind: "product", label: "Products" },
+    { count: mappings.customers.length, kind: "customer", label: "Customers" },
+  ];
+
   return (
     <section className="mx-auto w-full max-w-3xl">
+      <div className="mb-10 text-center">
+        <h1 className="text-4xl font-semibold tracking-normal text-neutral-950 sm:text-5xl">
+          Amazon Sales Import
+        </h1>
+        <p className="mt-4 text-base leading-7 text-neutral-600 sm:text-lg">
+          Upload your Amazon sales Excel file to get started.
+        </p>
+      </div>
+
       <div
         className={[
           "rounded-lg border-2 border-dashed bg-white p-8 text-center shadow-sm transition-colors sm:p-12",
@@ -290,6 +331,34 @@ export function ExcelUpload() {
 
         </div>
       ) : null}
+
+      <div className="mt-8 rounded-lg border border-neutral-200 bg-white p-4 shadow-sm">
+        <div className="flex flex-col gap-1 sm:flex-row sm:items-baseline sm:justify-between">
+          <h2 className="text-sm font-semibold text-neutral-950">
+            Active mappings
+          </h2>
+          <p className="text-xs text-neutral-500">
+            Used to convert rows into sales orders. Click to view or edit.
+          </p>
+        </div>
+        <div className="mt-3 grid grid-cols-3 gap-3">
+          {mappingStats.map((stat) => (
+            <button
+              key={stat.kind}
+              type="button"
+              className="rounded-lg border border-neutral-200 px-3 py-3 text-left transition-colors hover:border-teal-300 hover:bg-teal-50/50 focus:outline-none focus:ring-2 focus:ring-teal-500 focus:ring-offset-2"
+              onClick={() => onOpenSettings(stat.kind)}
+            >
+              <span className="block text-2xl font-semibold tabular-nums text-neutral-950">
+                {stat.count}
+              </span>
+              <span className="block text-xs font-medium text-neutral-600">
+                {stat.label}
+              </span>
+            </button>
+          ))}
+        </div>
+      </div>
 
       <ConfirmSheetDialog
         sheetName={pendingSheet}

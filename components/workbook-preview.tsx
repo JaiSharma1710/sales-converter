@@ -6,6 +6,7 @@ import {
   HEADER_COLUMNS,
 } from "@/lib/excel/create-sales-workbook";
 import { downloadSalesWorkbook } from "@/lib/excel/export-sales-workbook";
+import type { MissingMapping } from "@/types/mappings";
 import type { ConvertedStateWorkbook } from "@/types/sales";
 import { ConversionErrors } from "./conversion-errors";
 import { SheetTabs } from "./sheet-tabs";
@@ -15,12 +16,16 @@ type PreviewSheet = "Header" | "Details";
 
 type WorkbookPreviewProps = {
   workbook: ConvertedStateWorkbook;
+  onAddMapping: (missingMapping: MissingMapping) => void;
   onBack: () => void;
 };
 
-export function WorkbookPreview({ workbook, onBack }: WorkbookPreviewProps) {
+export function WorkbookPreview({
+  workbook,
+  onAddMapping,
+  onBack,
+}: WorkbookPreviewProps) {
   const [activeSheet, setActiveSheet] = useState<PreviewSheet>("Header");
-  const [downloadError, setDownloadError] = useState<string | null>(null);
   const hasErrors = workbook.errors.length > 0;
   const errorRowCount = new Set(
     workbook.errors.map((error) => error.sourceRowNumber),
@@ -31,13 +36,9 @@ export function WorkbookPreview({ workbook, onBack }: WorkbookPreviewProps) {
     activeSheet === "Header" ? workbook.headerRows : workbook.detailRows;
 
   const handleDownload = () => {
-    if (hasErrors) {
-      setDownloadError("Resolve conversion errors before downloading.");
-      return;
+    if (!hasErrors) {
+      downloadSalesWorkbook(workbook);
     }
-
-    setDownloadError(null);
-    downloadSalesWorkbook(workbook);
   };
 
   return (
@@ -81,11 +82,6 @@ export function WorkbookPreview({ workbook, onBack }: WorkbookPreviewProps) {
           >
             Download XLSX
           </button>
-          {downloadError ? (
-            <p className="text-sm font-medium text-red-700">
-              {downloadError}
-            </p>
-          ) : null}
           {hasErrors ? (
             <p className="text-sm font-medium text-red-700">
               Resolve conversion errors before downloading.
@@ -98,8 +94,10 @@ export function WorkbookPreview({ workbook, onBack }: WorkbookPreviewProps) {
         <div className="mb-5">
           <ConversionErrors
             title={`${workbook.errors.length} conversion errors`}
+            onAddMapping={onAddMapping}
             errors={workbook.errors.map((error) => ({
               message: error.message,
+              missingMapping: error.missingMapping,
               rowNumber: error.sourceRowNumber,
               value: error.value,
             }))}

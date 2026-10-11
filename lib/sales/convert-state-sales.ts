@@ -1,6 +1,11 @@
 import {
   createSalesOrderFileName,
 } from "@/lib/excel/create-sales-workbook";
+import {
+  lookupCustomer,
+  lookupProduct,
+  type MappingIndex,
+} from "@/lib/mappings/mapping-index";
 import type { AmazonSourceRow } from "@/types/amazon";
 import type {
   ConversionError,
@@ -8,9 +13,8 @@ import type {
   SalesDetailRow,
   SalesHeaderRow,
 } from "@/types/sales";
-import { lookupCustomerMapping } from "./customer-lookup";
+import type { MissingMapping } from "@/types/mappings";
 import { formatAmazonDate, formatLocalDate } from "./format-date";
-import { lookupProductMapping } from "./product-lookup";
 
 const REQUIRED_FIELDS = [
   "Invoice Number",
@@ -22,6 +26,7 @@ const REQUIRED_FIELDS = [
 ] as const;
 
 type ConvertStateSalesRowsInput = {
+  mappingIndex: MappingIndex;
   sourceRows: AmazonSourceRow[];
   siteCode: string;
   state: string;
@@ -64,16 +69,19 @@ function addError(
   field: string,
   value: unknown,
   message: string,
+  missingMapping?: MissingMapping,
 ) {
   errors.push({
     field,
     message,
+    missingMapping,
     sourceRowNumber: sourceRow.rowNumber,
     value,
   });
 }
 
 export function convertStateSalesRows({
+  mappingIndex,
   orderDate = formatLocalDate(),
   siteCode,
   sourceRows,
@@ -111,8 +119,8 @@ export function convertStateSalesRows({
     const pordDate = formatAmazonDate(invoiceDateValue);
     const quantity = parseNumber(quantityValue);
     const invoiceAmount = parseNumber(invoiceAmountValue);
-    const { product, sku } = lookupProductMapping(skuValue);
-    const customerLookup = lookupCustomerMapping(siteCode, shipToState);
+    const { product, sku } = lookupProduct(mappingIndex, skuValue);
+    const customer = lookupCustomer(mappingIndex, siteCode, shipToState);
 
     if (!pordDate && normalizeText(invoiceDateValue) !== "") {
       addError(
@@ -131,26 +139,18 @@ export function convertStateSalesRows({
         "Sku",
         sku,
         `Unknown SKU: ${sku}`,
+        { kind: "product", values: { sku } },
       );
     }
 
-    if (customerLookup.status === "missing" && shipToState) {
+    if (!customer && shipToState) {
       addError(
         rowErrors,
         sourceRow,
         "Ship To State",
         shipToState,
         `No customer mapping found for ${siteCode} + ${shipToState}`,
-      );
-    }
-
-    if (customerLookup.status === "ambiguous") {
-      addError(
-        rowErrors,
-        sourceRow,
-        "Ship To State",
-        shipToState,
-        `Multiple customer mappings found for ${siteCode} + ${shipToState}`,
+        { kind: "customer", values: { siteCode, state: shipToState } },
       );
     }
 
@@ -187,7 +187,7 @@ export function convertStateSalesRows({
     if (
       rowErrors.length > 0 ||
       !product ||
-      customerLookup.status !== "found" ||
+      !customer ||
       !pordDate ||
       quantity === null ||
       quantity === 0 ||
@@ -201,7 +201,7 @@ export function convertStateSalesRows({
     const rate = roundToTwoDecimals(invoiceAmount / quantity / 1.05);
 
     headerRows.push({
-      CUST_CODE: customerLookup.customer.custCode,
+      CUST_CODE: customer.custCode,
       CUST_PORD: invoiceNumber,
       ITEM_SER: "WFG04",
       MARKET_SEGMENT: product.productDivision,
@@ -223,7 +223,7 @@ export function convertStateSalesRows({
       SALE_ORDER: saleOrder,
       TAX_CHAP: "GST-5",
       TAX_CLASS: "REG",
-      TAX_ENV: customerLookup.customer.taxEnv,
+      TAX_ENV: customer.taxEnv,
     });
   }
 

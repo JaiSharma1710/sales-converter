@@ -1,3 +1,5 @@
+import type { MissingMapping } from "./mappings";
+
 export type AmazonSourceRow = {
   rowNumber: number;
   sellerGstin: string;
@@ -10,4 +12,5 @@ export type UnmappedRow = {
   rowNumber: number;
   sellerGstin: string;
   reason: string;
+  missingMapping?: MissingMapping;
 };

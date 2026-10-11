@@ -1,7 +1,4 @@
-import {
-  GST_STATE_MAPPING,
-  type GstPrefix,
-} from "@/constants/gst-state-mapping";
+import type { MappingIndex } from "@/lib/mappings/mapping-index";
 import type { AmazonSourceRow, UnmappedRow } from "@/types/amazon";
 import type { StateSalesGroup } from "@/types/sales";
 
@@ -24,16 +21,19 @@ function getUnmappedReason(sellerGstin: string, gstPrefix: string) {
 
 export function groupSalesByState(
   sourceRows: AmazonSourceRow[],
+  mappingIndex: MappingIndex,
 ): GroupSalesByStateResult {
   const groupsBySiteCode = new Map<string, StateSalesGroup>();
   const unmappedRows: UnmappedRow[] = [];
 
   for (const sourceRow of sourceRows) {
-    const route =
-      GST_STATE_MAPPING[sourceRow.gstPrefix as GstPrefix] ?? null;
+    const route = mappingIndex.sitesByGstPrefix.get(sourceRow.gstPrefix);
 
     if (!route) {
       unmappedRows.push({
+        missingMapping: /^\d{2}$/.test(sourceRow.gstPrefix)
+          ? { kind: "site", values: { gstPrefix: sourceRow.gstPrefix } }
+          : undefined,
         reason: getUnmappedReason(
           sourceRow.sellerGstin,
           sourceRow.gstPrefix,

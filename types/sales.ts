@@ -1,4 +1,5 @@
 import type { AmazonSourceRow, UnmappedRow } from "./amazon";
+import type { MissingMapping } from "./mappings";
 
 export type StateSalesGroup = {
   gstPrefix: string;
@@ -46,6 +47,7 @@ export type ConversionError = {
   field: string;
   value: unknown;
   message: string;
+  missingMapping?: MissingMapping;
 };
 
 export type ConvertedStateWorkbook = {

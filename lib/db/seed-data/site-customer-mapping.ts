@@ -124,7 +124,7 @@ export const SITE_CUSTOMER_MAPPING: Record<
       taxEnv: "SGST01",
     },
     {
-      state: "JAMMU & KASHMIR",
+      state: "LADAKH",
       custCode: "WCJKF00024",
       custName: "FBA-KOL-A6-LADAKH-NUT",
       stateCode: "JK",
@@ -886,7 +886,7 @@ export const SITE_CUSTOMER_MAPPING: Record<
       taxEnv: "SGST01",
     },
     {
-      state: "JAMMU & KASHMIR",
+      state: "LADAKH",
       custCode: "WCJKF00011",
       custName: "FBA-AMAZON-LADAKH-NUT",
       stateCode: "JK",
@@ -1147,7 +1147,7 @@ export const SITE_CUSTOMER_MAPPING: Record<
       taxEnv: "SGST01",
     },
     {
-      state: "JAMMU & KASHMIR",
+      state: "LADAKH",
       custCode: "WCJKF00015",
       custName: "FBA-KOL-A6-LADAKH-NUT",
       stateCode: "JK",
@@ -1401,7 +1401,7 @@ export const SITE_CUSTOMER_MAPPING: Record<
       taxEnv: "SGST01",
     },
     {
-      state: "JAMMU & KASHMIR",
+      state: "LADAKH",
       custCode: "WCJKF00012",
       custName: "FBA-BANGALORE-LADAKH-NUT",
       stateCode: "JK",
