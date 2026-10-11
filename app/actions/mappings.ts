@@ -2,6 +2,7 @@
 
 import { refresh } from "next/cache";
 import { z } from "zod";
+import { getAuthStatus } from "@/lib/auth/session";
 import * as repository from "@/lib/db/mappings-repository";
 import {
   customerMappingSchema,
@@ -11,23 +12,36 @@ import {
 } from "@/lib/mappings/schemas";
 import type { MappingActionResult } from "@/types/mappings";
 
-// Server Actions can be called with any payload, so every input is validated
-// here even though the form validates it first.
+// Server Actions can be called directly with any payload, so every action
+// checks the session and validates its input even though the form does too.
 
 const idSchema = z.number().int().positive();
 
-function save<T>(
+const SIGNED_OUT_RESULT: MappingActionResult = {
+  formError: "Your session has expired. Reload the page and sign in again.",
+  ok: false,
+};
+
+async function isSignedIn() {
+  return (await getAuthStatus()) === "authenticated";
+}
+
+async function save<T>(
   schema: z.ZodType<T>,
   input: unknown,
-  persist: (value: T) => MappingActionResult,
-): MappingActionResult {
+  persist: (value: T) => Promise<MappingActionResult>,
+): Promise<MappingActionResult> {
+  if (!(await isSignedIn())) {
+    return SIGNED_OUT_RESULT;
+  }
+
   const parsed = schema.safeParse(input);
 
   if (!parsed.success) {
     return { fieldErrors: toFieldErrors(parsed.error), ok: false };
   }
 
-  const result = persist(parsed.data);
+  const result = await persist(parsed.data);
 
   if (result.ok) {
     refresh();
@@ -36,17 +50,21 @@ function save<T>(
   return result;
 }
 
-function remove(
+async function remove(
   id: unknown,
-  persist: (id: number) => MappingActionResult,
-): MappingActionResult {
+  persist: (id: number) => Promise<MappingActionResult>,
+): Promise<MappingActionResult> {
+  if (!(await isSignedIn())) {
+    return SIGNED_OUT_RESULT;
+  }
+
   const parsed = idSchema.safeParse(id);
 
   if (!parsed.success) {
     return { formError: "Invalid mapping id.", ok: false };
   }
 
-  const result = persist(parsed.data);
+  const result = await persist(parsed.data);
 
   if (result.ok) {
     refresh();

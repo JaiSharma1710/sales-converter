@@ -1,37 +1,58 @@
 import "server-only";
-import Database from "better-sqlite3";
+import { createClient, type Client } from "@libsql/client";
 import { mkdirSync } from "node:fs";
 import path from "node:path";
 import { runMigrations } from "./migrations";
 
-const DEFAULT_DATABASE_PATH = path.join(
-  process.cwd(),
-  "data",
-  "sales-converter.db",
-);
-
-// Reuse one connection across hot reloads in development.
+// Reuse one client (and one migration run) per server instance, including
+// across hot reloads in development.
 const globalForDb = globalThis as unknown as {
-  salesConverterDb?: Database.Database;
+  salesConverterDb?: { client: Client; ready: Promise<void> };
 };
 
-function openDatabase() {
-  const databasePath = process.env.DATABASE_PATH ?? DEFAULT_DATABASE_PATH;
+function resolveDatabaseUrl() {
+  const url = process.env.TURSO_DATABASE_URL;
+
+  if (url) {
+    return url;
+  }
+
+  // Serverless hosts have a read-only, per-instance filesystem, so a local
+  // database file would fail or silently lose data.
+  if (process.env.VERCEL) {
+    throw new Error(
+      "TURSO_DATABASE_URL is not set. Add the Turso database URL and TURSO_AUTH_TOKEN to the Vercel environment variables.",
+    );
+  }
+
+  const databasePath = path.join(process.cwd(), "data", "sales-converter.db");
 
   mkdirSync(path.dirname(databasePath), { recursive: true });
 
-  const db = new Database(databasePath);
-
-  db.pragma("journal_mode = WAL");
-  db.pragma("foreign_keys = ON");
-  db.pragma("busy_timeout = 5000");
-  runMigrations(db);
-
-  return db;
+  return `file:${databasePath}`;
 }
 
-export function getDb() {
+function openDatabase() {
+  const client = createClient({
+    authToken: process.env.TURSO_AUTH_TOKEN,
+    timeout: 5000,
+    url: resolveDatabaseUrl(),
+  });
+  const ready = runMigrations(client).catch((error: unknown) => {
+    // Retry on the next request instead of caching the failure.
+    globalForDb.salesConverterDb = undefined;
+    throw error;
+  });
+
+  return { client, ready };
+}
+
+export async function getDb() {
   globalForDb.salesConverterDb ??= openDatabase();
 
-  return globalForDb.salesConverterDb;
+  const { client, ready } = globalForDb.salesConverterDb;
+
+  await ready;
+
+  return client;
 }

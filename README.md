@@ -22,11 +22,19 @@ This project uses [`next/font`](https://nextjs.org/docs/app/building-your-applic
 
 ## Mappings database
 
-Warehouse (GST prefix → site), product (SKU) and customer (site + state) mappings are stored in SQLite and edited from the **Mappings** button in the app.
+Warehouse (GST prefix → site), product (SKU) and customer (site + state) mappings are stored in a SQLite database ([libSQL](https://docs.turso.tech/sdk/ts/quickstart)) and edited from the **Mappings** button in the app.
 
-- The database file is `data/sales-converter.db` (git-ignored). Set `DATABASE_PATH` to use a different location.
-- It is created on first request. Migrations in `lib/db/migrations.ts` create the tables and seed them once from `lib/db/seed-data/`, the mappings that used to be hard-coded.
-- To back up the mappings, copy the `data/` folder while the app is stopped.
+- **Locally**, with no `TURSO_DATABASE_URL` set, the database is the file `data/sales-converter.db` (git-ignored).
+- **On Vercel**, the filesystem is read-only, so a hosted [Turso](https://turso.tech) database is required.
+- Tables are created and seeded on the first request. Migrations live in `lib/db/migrations.ts`, and the seed copies the mappings that used to be hard-coded (`lib/db/seed-data/`).
+
+## Environment variables
+
+| Variable | Where | Purpose |
+|---|---|---|
+| `TURSO_DATABASE_URL` | Production (required on Vercel) | e.g. `libsql://sales-converter-<org>.turso.io`. A `file:` URL also works. |
+| `TURSO_AUTH_TOKEN` | Production | Turso database token. |
+| `APP_PASSWORD` | Production (required) | Shared password for the sign-in page. Without it, production refuses all access. Locally, leaving it unset turns sign-in off. Changing it signs everyone out. |
 
 ## Learn More
 

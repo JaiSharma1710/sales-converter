@@ -1,10 +1,19 @@
-import { connection } from "next/server";
+import { redirect } from "next/navigation";
 import { SalesImport } from "@/components/sales-import";
+import { getAuthStatus, isAuthRequired } from "@/lib/auth/session";
 import { getMappings } from "@/lib/db/mappings-repository";
 
 export default async function Home() {
-  // Mappings live in SQLite and change at runtime, so render per request.
-  await connection();
+  // Reading the session cookie also renders this page per request, which the
+  // mappings need since they change at runtime.
+  if ((await getAuthStatus()) !== "authenticated") {
+    redirect("/login");
+  }
 
-  return <SalesImport mappings={getMappings()} />;
+  return (
+    <SalesImport
+      canSignOut={isAuthRequired()}
+      mappings={await getMappings()}
+    />
+  );
 }
