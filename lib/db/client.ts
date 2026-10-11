@@ -32,9 +32,18 @@ function resolveDatabaseUrl() {
   return `file:${databasePath}`;
 }
 
+// The Vercel Turso integration names the token after its custom prefix
+// ("TURSO_DATABASE" gives TURSO_DATABASE_TURSO_AUTH_TOKEN).
+function resolveAuthToken() {
+  return (
+    process.env.TURSO_AUTH_TOKEN ??
+    process.env.TURSO_DATABASE_TURSO_AUTH_TOKEN
+  );
+}
+
 function openDatabase() {
   const client = createClient({
-    authToken: process.env.TURSO_AUTH_TOKEN,
+    authToken: resolveAuthToken(),
     timeout: 5000,
     url: resolveDatabaseUrl(),
   });

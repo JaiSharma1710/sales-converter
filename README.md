@@ -33,7 +33,7 @@ Warehouse (GST prefix → site), product (SKU) and customer (site + state) mappi
 | Variable | Where | Purpose |
 |---|---|---|
 | `TURSO_DATABASE_URL` | Production (required on Vercel) | e.g. `libsql://sales-converter-<org>.turso.io`. A `file:` URL also works. |
-| `TURSO_AUTH_TOKEN` | Production | Turso database token. |
+| `TURSO_AUTH_TOKEN` | Production | Turso database token. `TURSO_DATABASE_TURSO_AUTH_TOKEN`, the name the Vercel Turso integration creates with the `TURSO_DATABASE` prefix, also works. |
 | `APP_PASSWORD` | Production (required) | Shared password for the sign-in page. Without it, production refuses all access. Locally, leaving it unset turns sign-in off. Changing it signs everyone out. |
 
 ## Learn More
