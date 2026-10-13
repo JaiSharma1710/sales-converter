@@ -1,12 +1,10 @@
 import * as XLSX from "xlsx";
+import type { SalesOrder } from "@/lib/import/build-sales-order";
 import { createSalesWorkbook } from "./create-sales-workbook";
-import type { ConvertedStateWorkbook } from "@/types/sales";
 
-export function downloadSalesWorkbook(workbook: ConvertedStateWorkbook) {
-  const xlsxWorkbook = createSalesWorkbook(
-    workbook.headerRows,
-    workbook.detailRows,
+export function downloadSalesWorkbook(order: SalesOrder) {
+  XLSX.writeFile(
+    createSalesWorkbook(order.headerRows, order.detailRows),
+    order.fileName,
   );
-
-  XLSX.writeFile(xlsxWorkbook, workbook.fileName);
 }

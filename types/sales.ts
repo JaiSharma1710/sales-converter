@@ -1,20 +1,3 @@
-import type { AmazonSourceRow, UnmappedRow } from "./amazon";
-import type { MissingMapping } from "./mappings";
-
-export type StateSalesGroup = {
-  gstPrefix: string;
-  state: string;
-  siteCode: string;
-  sourceRows: AmazonSourceRow[];
-};
-
-export type SalesAnalysis = {
-  groups: StateSalesGroup[];
-  skippedRowsCount: number;
-  totalRows: number;
-  unmappedRows: UnmappedRow[];
-};
-
 export type SalesHeaderRow = {
   SALE_ORDER: number;
   ORDER_TYPE: "RC";
@@ -39,23 +22,4 @@ export type SalesDetailRow = {
   TAX_CHAP: "GST-5";
   TAX_ENV: string;
   REMARKS: string;
-};
-
-export type ConversionError = {
-  sourceRowNumber: number;
-  saleOrder?: number;
-  field: string;
-  value: unknown;
-  message: string;
-  missingMapping?: MissingMapping;
-};
-
-export type ConvertedStateWorkbook = {
-  state: string;
-  siteCode: string;
-  fileName: string;
-  headerRows: SalesHeaderRow[];
-  detailRows: SalesDetailRow[];
-  errors: ConversionError[];
-  sourceRows: AmazonSourceRow[];
 };

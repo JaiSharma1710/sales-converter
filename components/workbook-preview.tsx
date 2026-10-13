@@ -6,105 +6,61 @@ import {
   HEADER_COLUMNS,
 } from "@/lib/excel/create-sales-workbook";
 import { downloadSalesWorkbook } from "@/lib/excel/export-sales-workbook";
-import type { MissingMapping } from "@/types/mappings";
-import type { ConvertedStateWorkbook } from "@/types/sales";
-import { ConversionErrors } from "./conversion-errors";
+import type { SalesOrder } from "@/lib/import/build-sales-order";
 import { SheetTabs } from "./sheet-tabs";
 import { SpreadsheetGrid } from "./spreadsheet-grid";
+import { Say } from "./ui/say";
+import { primaryButton, secondaryButton } from "./ui/styles";
 
 type PreviewSheet = "Header" | "Details";
 
 type WorkbookPreviewProps = {
-  workbook: ConvertedStateWorkbook;
-  onAddMapping: (missingMapping: MissingMapping) => void;
+  order: SalesOrder;
   onBack: () => void;
 };
 
-export function WorkbookPreview({
-  workbook,
-  onAddMapping,
-  onBack,
-}: WorkbookPreviewProps) {
+export function WorkbookPreview({ onBack, order }: WorkbookPreviewProps) {
   const [activeSheet, setActiveSheet] = useState<PreviewSheet>("Header");
-  const hasErrors = workbook.errors.length > 0;
-  const errorRowCount = new Set(
-    workbook.errors.map((error) => error.sourceRowNumber),
-  ).size;
   const activeColumns =
     activeSheet === "Header" ? HEADER_COLUMNS : DETAILS_COLUMNS;
   const activeRows =
-    activeSheet === "Header" ? workbook.headerRows : workbook.detailRows;
-
-  const handleDownload = () => {
-    if (!hasErrors) {
-      downloadSalesWorkbook(workbook);
-    }
-  };
+    activeSheet === "Header" ? order.headerRows : order.detailRows;
 
   return (
     <section className="w-full">
-      <div className="mb-5 flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
+      <button type="button" className={secondaryButton} onClick={onBack}>
+        <Say en="← Back to all steps" hi="← सभी चरणों पर वापस" className="text-left leading-tight" />
+      </button>
+
+      <div className="mt-6 flex flex-col gap-4 rounded-2xl border-2 border-emerald-300 bg-white p-5 sm:flex-row sm:items-center sm:justify-between">
         <div>
-          <button
-            type="button"
-            className="mb-4 rounded-lg border border-neutral-200 bg-white px-3 py-2 text-sm font-semibold text-neutral-800 shadow-sm transition-colors hover:bg-neutral-50 focus:outline-none focus:ring-2 focus:ring-teal-500 focus:ring-offset-2"
-            onClick={onBack}
-          >
-            Back
-          </button>
-          <h2 className="text-3xl font-semibold tracking-normal text-neutral-950">
-            {workbook.state}
-          </h2>
-          <p className="mt-1 text-sm font-semibold text-neutral-600">
-            {workbook.siteCode}
+          <h1 className="text-3xl font-bold text-neutral-950">
+            {order.state}{" "}
+            <span className="text-xl font-semibold text-neutral-500">{order.siteCode}</span>
+          </h1>
+          <p className="mt-2 text-lg text-neutral-700">
+            <Say
+              en={`${order.headerRows.length} orders, ready to download.`}
+              hi={`${order.headerRows.length} ऑर्डर, डाउनलोड के लिए तैयार।`}
+            />
           </p>
-          <p className="mt-3 text-sm text-neutral-600">
-            {workbook.headerRows.length} Orders
-          </p>
+          <p className="mt-1 break-all text-base text-neutral-500">{order.fileName}</p>
         </div>
-
-        <div className="flex flex-col items-start gap-3 sm:items-end">
-          {hasErrors ? (
-            <p className="rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-sm font-semibold text-amber-800">
-              {errorRowCount} rows need attention
-            </p>
-          ) : (
-            <p className="rounded-lg border border-emerald-200 bg-emerald-50 px-3 py-2 text-sm font-semibold text-emerald-800">
-              Ready to export: {workbook.headerRows.length} orders validated
-            </p>
-          )}
-
-          <button
-            type="button"
-            className="rounded-lg bg-teal-600 px-5 py-2.5 text-sm font-semibold text-white shadow-sm transition-colors hover:bg-teal-700 focus:outline-none focus:ring-2 focus:ring-teal-500 focus:ring-offset-2 disabled:cursor-not-allowed disabled:bg-neutral-300"
-            disabled={hasErrors}
-            onClick={handleDownload}
-          >
-            Download XLSX
-          </button>
-          {hasErrors ? (
-            <p className="text-sm font-medium text-red-700">
-              Resolve conversion errors before downloading.
-            </p>
-          ) : null}
-        </div>
+        <button
+          type="button"
+          className={`${primaryButton} px-8 py-4 text-xl`}
+          onClick={() => downloadSalesWorkbook(order)}
+        >
+          <Say en="Download Excel" hi="Excel डाउनलोड करें" className="text-left leading-tight" />
+        </button>
       </div>
 
-      {hasErrors ? (
-        <div className="mb-5">
-          <ConversionErrors
-            title={`${workbook.errors.length} conversion errors`}
-            onAddMapping={onAddMapping}
-            errors={workbook.errors.map((error) => ({
-              message: error.message,
-              missingMapping: error.missingMapping,
-              rowNumber: error.sourceRowNumber,
-              value: error.value,
-            }))}
-          />
-        </div>
-      ) : null}
-
+      <p className="mb-2 mt-6 text-base text-neutral-600">
+        <Say
+          en="Below is what the file contains. Switch between the two sheets with the tabs at the bottom."
+          hi="नीचे फ़ाइल का डेटा है। नीचे दिए टैब से दोनों शीट देख सकते हैं।"
+        />
+      </p>
       <div className="overflow-hidden rounded-lg border border-neutral-300 bg-white shadow-sm">
         <SpreadsheetGrid columns={activeColumns} rows={activeRows} />
         <SheetTabs activeSheet={activeSheet} onChange={setActiveSheet} />

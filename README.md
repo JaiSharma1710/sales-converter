@@ -20,20 +20,27 @@ You can start editing the page by modifying `app/page.tsx`. The page auto-update
 
 This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
 
-## Mappings database
+## How it works
 
-Warehouse (GST prefix → site), product (SKU) and customer (site + state) mappings are stored in a SQLite database ([libSQL](https://docs.turso.tech/sdk/ts/quickstart)) and edited from the **Mappings** button in the app.
+Nothing is stored. Everything happens in the browser, in three steps on one page. All messages are in English and Hindi.
 
-- **Locally**, with no `TURSO_DATABASE_URL` set, the database is the file `data/sales-converter.db` (git-ignored).
-- **On Vercel**, the filesystem is read-only, so a hosted [Turso](https://turso.tech) database is required.
-- Tables are created and seeded on the first request. Migrations live in `lib/db/migrations.ts`, and the seed copies the mappings that used to be hard-coded (`lib/db/seed-data/`).
+1. **Amazon FBA sales report.** The sheet with the transactions is found automatically. Only `Shipment` rows are used. Orders are grouped by `Ship From State` (one warehouse per state).
+2. **Product code file and division file** (`ECOM PRODUCT CODE MASTER.xlsx`, `ECOM DIVISION MASTER.xlsx`: `PRODUCT NAME` + `PRODUCT CODE` / `DIVISION`). Every SKU in the report must be in both files.
+3. **One warehouse file per state** in the report (e.g. `Master Sheet - FBA-MAH-WM0B2.xlsx`). It's either uploaded per box or all at once, and each file goes to the right box by its home state.
+   - Customers are read from the sheet with `site_code`, `State` and `cust_code`.
+   - **TAX_ENV comes from the column next to the repeated State column (usually H).** In several files the labelled `TAX_ENV` column (F) is empty or wrong. If there's no repeated State column, the labelled one is used.
+   - The home state is the one state whose tax env is not `SGST01` (e.g. `SMH`).
+   - A J&K row whose customer name contains "LADAKH" counts as LADAKH.
+   - State names are matched loosely (`&`/`AND`, case, `LAKSHADWEEPISLAND` = `LAKSHADWEEP`).
+
+When a state's file passes, "Open file" shows the generated sales order (Header + Details) with a download button. Every problem says what is wrong, where (file, sheet, row, column), and how to fix it.
+
+The logic lives in `lib/import/`.
 
 ## Environment variables
 
 | Variable | Where | Purpose |
 |---|---|---|
-| `TURSO_DATABASE_URL` | Production (required on Vercel) | e.g. `libsql://sales-converter-<org>.turso.io`. A `file:` URL also works. |
-| `TURSO_AUTH_TOKEN` | Production | Turso database token. `TURSO_DATABASE_TURSO_AUTH_TOKEN`, the name the Vercel Turso integration creates with the `TURSO_DATABASE` prefix, also works. |
 | `APP_PASSWORD` | Production (required) | Shared password for the sign-in page. Without it, production refuses all access. Locally, leaving it unset turns sign-in off. Changing it signs everyone out. |
 
 ## Learn More
